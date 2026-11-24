@@ -732,7 +732,7 @@ function fillModelForm(key, m) {
   document.getElementById("m-thinking").value = m.thinking_level || "";
   document.getElementById("m-apikey").value = "";
   document.getElementById("m-apikey").placeholder = m.has_api_key
-    ? (m.api_key_masked || "****") + " (leave empty to keep)"
+    ? (m.api_key_masked || "****") + t("api_key_keep_hint")
     : t("api_key_ph");
   document.getElementById("m-system").value = m.system_prompt || "";
 }

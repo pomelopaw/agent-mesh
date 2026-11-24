@@ -61,7 +61,7 @@ export const PROVIDER_REGISTRY = [
       if (c.model) head.appendChild(el("span", { className: "tag" }, c.model));
       if (c.thinking_level) head.appendChild(el("span", { className: "tag" }, thinkingLabel(c.thinking_level)));
       main.appendChild(head);
-      main.appendChild(el("div", { className: "agent-item-sub" }, c.workspace_path || "Relay Inbox"));
+      main.appendChild(el("div", { className: "agent-item-sub" }, c.workspace_path || t("inbox_btn")));
     },
   },
   {

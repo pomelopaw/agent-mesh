@@ -4,7 +4,9 @@ OpenAI-compatible reasoning / chat API provider adapter.
 
 from __future__ import annotations
 
+import http.client
 import json
+import socket
 import threading
 import urllib.error
 import urllib.request
@@ -17,6 +19,7 @@ from ..storage import (
     CONVS_FILE,
     MODELS_FILE,
     TASK_REGISTRY,
+    ActiveTaskHandle,
     StateLock,
     get_secret,
     load_json_file,
@@ -64,6 +67,110 @@ def resolve_model_runtime(collab: dict[str, Any], proj_key: str) -> dict[str, st
     }
 
 
+def _close_connection_now(conn: http.client.HTTPConnection) -> None:
+    sock = getattr(conn, "sock", None)
+    if sock is not None:
+        try:
+            sock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        try:
+            sock.close()
+        except OSError:
+            pass
+    try:
+        conn.close()
+    except Exception:
+        pass
+
+
+def _make_cancellable_opener(
+    handle: ActiveTaskHandle,
+    bypass_proxy: bool,
+) -> tuple[urllib.request.OpenerDirector, list[Any], threading.Lock]:
+    """
+    Build a urllib opener whose underlying HTTP/HTTPS connections are tracked before
+    connect() so task cancellation can shut down the TCP socket immediately even while
+    waiting for response headers (TTFB), while keeping native system proxy and TLS behavior.
+    """
+    conn_lock = threading.Lock()
+    active_conns: set[http.client.HTTPConnection] = set()
+    active_resps: list[Any] = []
+
+    def _abort() -> None:
+        with conn_lock:
+            conns = list(active_conns)
+            resps = list(active_resps)
+        for conn in conns:
+            _close_connection_now(conn)
+        for resp in resps:
+            try:
+                resp.close()
+            except Exception:
+                pass
+
+    handle.add_cancel_hook(_abort)
+
+    class _TrackedHTTPConnection(http.client.HTTPConnection):
+        def connect(self) -> None:
+            if handle.cancel_event.is_set():
+                raise InterruptedError("cancelled")
+            with conn_lock:
+                active_conns.add(self)
+            try:
+                super().connect()
+            except BaseException:
+                with conn_lock:
+                    active_conns.discard(self)
+                raise
+            if handle.cancel_event.is_set():
+                with conn_lock:
+                    active_conns.discard(self)
+                _close_connection_now(self)
+                raise InterruptedError("cancelled")
+
+        def close(self) -> None:
+            with conn_lock:
+                active_conns.discard(self)
+            super().close()
+
+    class _TrackedHTTPSConnection(http.client.HTTPSConnection):
+        def connect(self) -> None:
+            if handle.cancel_event.is_set():
+                raise InterruptedError("cancelled")
+            with conn_lock:
+                active_conns.add(self)
+            try:
+                super().connect()
+            except BaseException:
+                with conn_lock:
+                    active_conns.discard(self)
+                raise
+            if handle.cancel_event.is_set():
+                with conn_lock:
+                    active_conns.discard(self)
+                _close_connection_now(self)
+                raise InterruptedError("cancelled")
+
+        def close(self) -> None:
+            with conn_lock:
+                active_conns.discard(self)
+            super().close()
+
+    class _TrackedHTTPHandler(urllib.request.HTTPHandler):
+        def http_open(self, req: urllib.request.Request) -> Any:
+            return self.do_open(_TrackedHTTPConnection, req)
+
+    class _TrackedHTTPSHandler(urllib.request.HTTPSHandler):
+        def https_open(self, req: urllib.request.Request) -> Any:
+            return self.do_open(_TrackedHTTPSConnection, req, context=self._context)
+
+    handlers: list[Any] = [_TrackedHTTPHandler(), _TrackedHTTPSHandler()]
+    if bypass_proxy:
+        handlers.append(urllib.request.ProxyHandler({}))
+    return urllib.request.build_opener(*handlers), active_resps, conn_lock
+
+
 def _run_openai_compat_turn(
     conversation_id: str,
     api_base: str,
@@ -95,22 +202,10 @@ def _run_openai_compat_turn(
             headers["Authorization"] = f"Bearer {api_key.strip()}"
 
         parsed_host = (urlparse(url).hostname or "").lower()
-        opener = (
-            urllib.request.build_opener(urllib.request.ProxyHandler({}))
-            if is_loopback_host(parsed_host)
-            else urllib.request.build_opener()
+        opener, active_resp, resp_lock = _make_cancellable_opener(
+            handle,
+            bypass_proxy=is_loopback_host(parsed_host),
         )
-
-        active_resp: list[Any] = []
-
-        def _abort() -> None:
-            for resp in list(active_resp):
-                try:
-                    resp.close()
-                except Exception:
-                    pass
-
-        handle.add_cancel_hook(_abort)
 
         def _post(body_obj: dict[str, Any]) -> dict[str, Any]:
             if handle.cancel_event.is_set():
@@ -122,7 +217,8 @@ def _run_openai_compat_turn(
                 method="POST",
             )
             resp = opener.open(req, timeout=180)
-            active_resp.append(resp)
+            with resp_lock:
+                active_resp.append(resp)
             try:
                 raw = resp.read()
                 return json.loads(raw.decode("utf-8", errors="replace"))
@@ -131,8 +227,9 @@ def _run_openai_compat_turn(
                     resp.close()
                 except Exception:
                     pass
-                if resp in active_resp:
-                    active_resp.remove(resp)
+                with resp_lock:
+                    if resp in active_resp:
+                        active_resp.remove(resp)
 
         reply_text = ""
         reasoning_text = ""
