@@ -6,5 +6,57 @@
   "zh-TW": {
     "displayName": "Agent Mesh",
     "description": "多 AI 背景協作中心。支援依專案編組自訂推理 API 模型、本機 Codex、多帳號桌面實例與可選的 Antigravity 專案，全程無滑鼠干擾背景平行派單，並支援依日期分頁回溯歷史會話。"
+  },
+  "ru": {
+    "displayName": "Agent Mesh",
+    "description": "Фоновый центр совместной работы нескольких ИИ. Привязывайте к проектам собственные API-модели, локальный Codex, дополнительные настольные экземпляры и Antigravity с параллельным запуском и постраничной историей."
+  },
+  "ar": {
+    "displayName": "Agent Mesh",
+    "description": "مركز تنسيق خلفي لتعاون عدة نماذج ذكاء اصطناعي لكل مشروع، يدعم واجهات API المخصصة وCodex المحلي والنسخ المكتبية المتعددة وAntigravity مع سجل محادثات مقسم إلى صفحات."
+  },
+  "fa": {
+    "displayName": "Agent Mesh",
+    "description": "مرکز هماهنگی پس‌زمینه برای همکاری هم‌زمان چند هوش مصنوعی در هر پروژه؛ با پشتیبانی از مدل‌های API سفارشی، Codex محلی، نمونه‌های دسکتاپ متعدد و Antigravity همراه با تاریخچه صفحه‌بندی‌شده."
+  },
+  "ko": {
+    "displayName": "Agent Mesh",
+    "description": "백그라운드 멀티 AI 협업 허브입니다. 프로젝트별로 커스텀 추론 API 모델, 로컬 Codex, 다중 데스크톱 인스턴스, Antigravity를 묶어 병렬 작업을 실행하고 날짜별 페이지로 기록을 조회합니다."
+  },
+  "es": {
+    "displayName": "Agent Mesh",
+    "description": "Centro de orquestación multi-IA en segundo plano. Vincula APIs de razonamiento, Codex local, varias instancias de escritorio y Antigravity por proyecto con ejecución paralela e historial paginado."
+  },
+  "my": {
+    "displayName": "Agent Mesh",
+    "description": "နောက်ကွယ်တွင် AI မျိုးစုံပူးပေါင်းလုပ်ဆောင်နိုင်သော စင်တာဖြစ်ပြီး ပရောဂျက်အလိုက် API မော်ဒယ်များ၊ စက်တွင်း Codex၊ ဒက်စ်တော့အကောင့်များနှင့် Antigravity တို့ကို ချိတ်ဆက်ကာ မှတ်တမ်းများကို စာမျက်နှာခွဲ ကြည့်ရှုနိုင်သည်။"
+  },
+  "be": {
+    "displayName": "Agent Mesh",
+    "description": "Фонавы цэнтр супрацоўніцтва некалькіх ШІ. Прывязвайце да праектаў уласныя API-мадэлі, лакальны Codex, некалькі настольных экзэмпляраў і Antigravity з паралельным выкананнем і пастаронкавай гісторыяй."
+  },
+  "ps": {
+    "displayName": "Agent Mesh",
+    "description": "د څو مصنوعي ځیرکتیاوو شالید همغږۍ مرکز چې د هرې پروژې لپاره API ماډلونه، محلي Codex، څو ډیسکټاپ بېلګې او Antigravity نښلوي او د تاریخچې مخ‌پاڼې ښيي."
+  },
+  "prs": {
+    "displayName": "Agent Mesh",
+    "description": "مرکز هماهنگی پس‌زمینه برای همکاری چندین هوش مصنوعی در هر پروژه با پشتیبانی از مدل‌های API، Codex محلی، چندین نمونه دسکتاپ و Antigravity همراه با تاریخچه صفحه‌بندی‌شده."
+  },
+  "am": {
+    "displayName": "Agent Mesh",
+    "description": "ለእያንዳንዱ ፕሮጀክት ብጁ የAPI ሞዴሎችን፣ የአካባቢ Codex፣ በርካታ የዴስክቶፕ መገለጫዎችን እና Antigravityን በጀርባ በትይዩ የሚያስተባብር ባለብዙ AI ማዕከል ነው።"
+  },
+  "so": {
+    "displayName": "Agent Mesh",
+    "description": "Xarun isku-dubbarid AI badan oo gadaal ka shaqeysa. Ku xir mashruuc kasta moodallo API, Codex maxalli ah, iyo Antigravity iyadoo leh taariikh bogag u qaybsan."
+  },
+  "ti": {
+    "displayName": "Agent Mesh",
+    "description": "ንነፍሲ ወከፍ ፕሮጀክት API ሞዴላት፣ ከባብያዊ Codex፣ ብዙሓት ዴስክቶፕ መገለጺታትን Antigravityን ብድሕረ ባይታ ብሓባር ዘተሓባብር ማእከል ብዙሓት AI እዩ።"
+  },
+  "fr": {
+    "displayName": "Agent Mesh",
+    "description": "Hub d'orchestration multi-IA en arrière-plan. Associez par projet des modèles API personnalisés, Codex local, plusieurs instances de bureau et Antigravity avec exécution parallèle et historique paginé."
   }
 }
