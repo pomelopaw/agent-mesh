@@ -80,6 +80,25 @@ def resolve_agentapi() -> str | None:
     return None
 
 
+def resolve_agentapi_cmd_prefix() -> list[str] | None:
+    """
+    Unwrap Windows agentapi.BAT -> [<language_server.exe>, "agentapi"] so subprocess.run(..., shell=False)
+    passes multi-line UTF-8/markdown prompts directly inline without cmd.exe mangling or temp files.
+    """
+    bin_path = resolve_agentapi()
+    if not bin_path:
+        return None
+    if os.name == "nt" and bin_path.lower().endswith((".bat", ".cmd")):
+        try:
+            text = Path(bin_path).read_text(encoding="utf-8", errors="replace")
+            m = re.search(r'"([^"]+language_server[^"]*\.exe)"\s+agentapi\b', text, re.IGNORECASE)
+            if m and Path(m.group(1)).is_file():
+                return [m.group(1), "agentapi"]
+        except OSError:
+            pass
+    return [bin_path]
+
+
 def run_cmd(args: list[str], timeout: int = 60, env_override: dict[str, str] | None = None) -> dict[str, Any]:
     env = os.environ.copy()
     if env_override:
@@ -224,10 +243,11 @@ def discover_antigravity_projects(force: bool = False) -> dict[str, Any]:
     return {"ok": True, "antigravity_projects": ag_list, "scanned_conversations": len(conv_ids)}
 
 
-def prepare_prompt_arg(text: str, agentapi_bin: str, workspace_hint: str | None = None) -> tuple[str, str | None]:
+def prepare_prompt_arg(text: str, cmd_prefix: list[str], workspace_hint: str | None = None) -> tuple[str, str | None]:
     cleaned = text.replace("\r\n", "\n").strip()
-    is_bat = agentapi_bin.lower().endswith((".bat", ".cmd"))
-    if not (is_bat and (len(cleaned) > 600 or bool(BAT_UNSAFE_RE.search(cleaned)))):
+    is_bat = cmd_prefix[0].lower().endswith((".bat", ".cmd"))
+    needs_file = (is_bat and (len(cleaned) > 600 or bool(BAT_UNSAFE_RE.search(cleaned)))) or (len(cleaned) > 24000)
+    if not needs_file:
         return cleaned, None
     target_dir = PROMPTS_DIR
     if workspace_hint:
@@ -334,8 +354,8 @@ class SidecarHandler(BaseHTTPRequestHandler):
         body = self._read_json()
         if body is None:
             return
-        agentapi_bin = resolve_agentapi()
-        if not agentapi_bin:
+        cmd_prefix = resolve_agentapi_cmd_prefix()
+        if not cmd_prefix:
             self._send_json(503, {"ok": False, "error": "agentapi not found"})
             return
 
@@ -344,16 +364,18 @@ class SidecarHandler(BaseHTTPRequestHandler):
             if not prompt:
                 self._send_json(400, {"ok": False, "error": "prompt is required"})
                 return
-            cmd = [agentapi_bin, "new-conversation"]
+            cmd = [*cmd_prefix, "new-conversation"]
             if body.get("model"):
                 cmd.append(f"--model={body['model']}")
             if body.get("title"):
-                safe_title = re.sub(r'[\r\n"&|<>^%!]+', " ", str(body["title"])).strip()
+                safe_title = re.sub(r"[\r\n]+", " ", str(body["title"])).strip()
+                if cmd_prefix[0].lower().endswith((".bat", ".cmd")):
+                    safe_title = re.sub(r'["&|<>^%!]+', " ", safe_title).strip()
                 if safe_title:
                     cmd.append(f"--title={safe_title}")
             if body.get("profile"):
                 cmd.append(f"--profile={body['profile']}")
-            prompt_arg, brief_path = prepare_prompt_arg(prompt, agentapi_bin, body.get("project_dir"))
+            prompt_arg, brief_path = prepare_prompt_arg(prompt, cmd_prefix, body.get("project_dir"))
             cmd.append(prompt_arg)
             pid = str(body.get("project_id") or "").strip()
             env_ov = {"ANTIGRAVITY_PROJECT_ID": pid} if pid else None
@@ -377,12 +399,14 @@ class SidecarHandler(BaseHTTPRequestHandler):
             if not cid or not message:
                 self._send_json(400, {"ok": False, "error": "conversation_id and message are required"})
                 return
-            cmd = [agentapi_bin, "send-message"]
+            cmd = [*cmd_prefix, "send-message"]
             if body.get("title"):
-                safe_title = re.sub(r'[\r\n"&|<>^%!]+', " ", str(body["title"])).strip()
+                safe_title = re.sub(r"[\r\n]+", " ", str(body["title"])).strip()
+                if cmd_prefix[0].lower().endswith((".bat", ".cmd")):
+                    safe_title = re.sub(r'["&|<>^%!]+', " ", safe_title).strip()
                 if safe_title:
                     cmd.append(f"--title={safe_title}")
-            msg_arg, brief_path = prepare_prompt_arg(message, agentapi_bin, body.get("project_dir"))
+            msg_arg, brief_path = prepare_prompt_arg(message, cmd_prefix, body.get("project_dir"))
             cmd.extend([cid, msg_arg])
             res = run_cmd(cmd, timeout=60)
             self._send_json(
