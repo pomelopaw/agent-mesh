@@ -2,8 +2,8 @@
 """
 Cross-platform local installer for Agent Mesh into Claude Cage.
   - Auto-detects the Cage data directory (Windows / macOS / Linux)
-  - Optionally migrates legacy antigravity-bridge state into ~/.agent-mesh
-  - Copies plugins/agent-mesh into <CageData>/plugins/agent-mesh
+  - Optionally migrates legacy state into ~/.agent-mesh
+  - Syncs plugins/agent-mesh into <CageData>/plugins/agent-mesh (removing stale files)
   - Adapts Python command on Windows if python3 is not a real interpreter on PATH
   - Runs an end-to-end MCP stdio smoke test against the installed plugin
 """
@@ -26,10 +26,9 @@ def detect_cage_data_dir(explicit: str | None) -> Path:
     if explicit:
         return Path(explicit).expanduser().resolve()
     candidates: list[Path] = []
-    for var in ("CLAUDE_CAGE_DATA_DIR",):
-        v = os.environ.get(var, "").strip()
-        if v:
-            candidates.append(Path(v).expanduser())
+    v = os.environ.get("CLAUDE_CAGE_DATA_DIR", "").strip()
+    if v:
+        candidates.append(Path(v).expanduser())
     cfg = os.environ.get("CLAUDE_CAGE_CONFIG", "").strip()
     if cfg:
         candidates.append(Path(cfg).expanduser().resolve().parent)
@@ -90,9 +89,9 @@ def run_mcp_smoke_test(plugin_dir: Path, python_exe: str) -> None:
     reqs = [
         {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05"}},
         {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
-        {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "ag_health", "arguments": {}}},
-        {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "ag_list_projects", "arguments": {}}},
-        {"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "ag_list_models", "arguments": {}}},
+        {"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "mesh_health", "arguments": {}}},
+        {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "mesh_list_projects", "arguments": {}}},
+        {"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "mesh_list_models", "arguments": {}}},
     ]
     payload = "\n".join(json.dumps(r) for r in reqs) + "\n"
     proc = subprocess.run(
@@ -106,19 +105,23 @@ def run_mcp_smoke_test(plugin_dir: Path, python_exe: str) -> None:
     )
     if proc.returncode != 0:
         raise RuntimeError(f"MCP smoke test failed (rc={proc.returncode}): {proc.stderr}")
-    lines = [json.loads(line) for line in proc.stdout.splitlines() if line.strip()]
-    if len(lines) < 5:
-        raise RuntimeError(f"Expected 5 MCP responses, got {len(lines)}: {proc.stdout}")
-    tools = lines[1]["result"]["tools"]
-    health = json.loads(lines[2]["result"]["content"][0]["text"])
-    projects = json.loads(lines[3]["result"]["content"][0]["text"])
-    models = json.loads(lines[4]["result"]["content"][0]["text"])
+    by_id = {}
+    for line in proc.stdout.splitlines():
+        if line.strip():
+            obj = json.loads(line)
+            by_id[obj.get("id")] = obj
+    if len(by_id) < 5:
+        raise RuntimeError(f"Expected 5 MCP responses, got {len(by_id)}: {proc.stdout}")
+    tools = by_id[2]["result"]["tools"]
+    health = json.loads(by_id[3]["result"]["content"][0]["text"])
+    projects = json.loads(by_id[4]["result"]["content"][0]["text"])
+    models = json.loads(by_id[5]["result"]["content"][0]["text"])
     if not health.get("ok"):
-        raise RuntimeError(f"ag_health returned not ok: {health}")
+        raise RuntimeError(f"mesh_health returned not ok: {health}")
     print(
         f"MCP smoke test    : OK ({len(tools)} tools, mode={health.get('mode')}, "
         f"projects={len(projects.get('projects', {}))}, models={len(models.get('models', {}))}, "
-        f"ag_online={health.get('antigravity_bridge_online')})"
+        f"codex={health.get('codex_available')}, ag_online={health.get('antigravity_bridge_online')})"
     )
 
 
@@ -134,7 +137,14 @@ def main() -> None:
     dst_dir = plugins_root / "agent-mesh"
     dst_dir.mkdir(parents=True, exist_ok=True)
 
-    # Migrate legacy state if requested or auto-found next to repo
+    # Remove stale legacy monolith files from prior installation
+    for stale in (dst_dir / "mesh_engine.py", dst_dir / "view" / "app.js"):
+        try:
+            if stale.exists():
+                stale.unlink()
+        except OSError:
+            pass
+
     state_dir = Path(os.environ.get("AGENT_MESH_STATE_DIR") or (Path.home() / ".agent-mesh")).expanduser().resolve()
     legacy_candidates = [Path(args.migrate_from)] if args.migrate_from else [ROOT.parent / "antigravity-bridge" / "state"]
     migrated: list[str] = []
@@ -142,7 +152,6 @@ def main() -> None:
         if lc.exists():
             migrated.extend(migrate_legacy_state(lc, state_dir))
 
-    # Copy plugin in-place (Windows-safe when Cage holds handles)
     shutil.copytree(
         SRC_PLUGIN,
         dst_dir,
@@ -150,7 +159,6 @@ def main() -> None:
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
     )
 
-    # Adapt Python binary ONLY in the installed copy on Windows where `python3` may be absent/stub
     python_exe = sys.executable
     if os.name == "nt":
         mpath = dst_dir / "plugin.json"
@@ -159,9 +167,8 @@ def main() -> None:
             cmd = srv.get("command") or []
             if cmd and cmd[0] == "python3":
                 cmd[0] = python_exe
-        mpath.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        mpath.write_bytes((json.dumps(manifest, indent=2, ensure_ascii=False) + "\n").encode("utf-8"))
 
-    # Optionally remove old antigravity-bridge plugin folder so sidebar isn't duplicated
     removed_legacy = False
     if args.remove_legacy:
         old_dir = plugins_root / "antigravity-bridge"
