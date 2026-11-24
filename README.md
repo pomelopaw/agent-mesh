@@ -24,6 +24,18 @@
 
 ---
 
+## 界面预览 / Screenshots
+
+| 插件详情与 MCP 工具 | 主界面（在线 / Codex / Antigravity 状态） |
+| --- | --- |
+| ![Plugin Loaded](docs/screenshots/01-plugin-loaded.jpg) | ![Main Dashboard](docs/screenshots/02-main-dashboard.png) |
+
+| 模型设置（独立管理） | 创建协作项目 | 添加 4 路 AI 协作者 |
+| --- | --- | --- |
+| ![Model Settings](docs/screenshots/03-model-settings.png) | ![Create Project](docs/screenshots/04-create-project.png) | ![Add Agent](docs/screenshots/05-add-agent.png) |
+
+---
+
 ## 目录结构 / Repository Layout
 
 ```text
