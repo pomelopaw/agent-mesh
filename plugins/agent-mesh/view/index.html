@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent Mesh</title>
+  <style>
+    :root {
+      --paper: #ffffff;
+      --ink: #1f2937;
+      --strong: #111827;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --chrome: #f9fafb;
+      --hover: #f3f4f6;
+      --accent: #2563eb;
+      --button: #111827;
+      --button-ink: #ffffff;
+      --success: #059669;
+      --danger: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      font-size: 13px;
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.45;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+    .title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .title-group h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--strong);
+      white-space: nowrap;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--chrome);
+      border: 1px solid var(--line);
+      color: var(--muted);
+    }
+    .status-pill.ok {
+      color: var(--success);
+      border-color: color-mix(in srgb, var(--success) 30%, transparent);
+      background: color-mix(in srgb, var(--success) 10%, transparent);
+    }
+    .status-pill.err {
+      color: var(--danger);
+      border-color: color-mix(in srgb, var(--danger) 30%, transparent);
+      background: color-mix(in srgb, var(--danger) 10%, transparent);
+    }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .actions { display: flex; align-items: center; gap: 8px; }
+
+    button {
+      padding: 6px 12px;
+      border-radius: 7px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      color: var(--strong);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.12s ease;
+    }
+    button:hover:not(:disabled) { background: var(--hover); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button.primary {
+      background: var(--button);
+      color: var(--button-ink);
+      border-color: transparent;
+    }
+    button.primary:hover:not(:disabled) { opacity: 0.9; }
+    button.dashed {
+      width: 100%;
+      border-style: dashed;
+      background: var(--chrome);
+      color: var(--strong);
+      padding: 9px 12px;
+      font-weight: 600;
+    }
+    button.dashed:hover:not(:disabled) { background: var(--hover); }
+    button.ghost {
+      border-color: transparent;
+      background: transparent;
+      color: var(--muted);
+      padding: 4px 8px;
+    }
+    button.ghost:hover:not(:disabled) { background: var(--hover); color: var(--strong); }
+    button.danger { color: var(--danger); }
+    button.sm { padding: 4px 8px; font-size: 11px; }
+
+    .section-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .project-list { display: flex; flex-direction: column; gap: 8px; }
+    .project-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--paper);
+      transition: background 0.12s ease;
+    }
+    .project-row:hover { background: var(--chrome); }
+    .project-main { min-width: 0; flex: 1; }
+    .project-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .project-name {
+      font-size: 14px;
+      font-weight: 650;
+      color: var(--strong);
+      margin-right: 4px;
+    }
+    .project-sub {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .row-actions { display: flex; align-items: center; gap: 4px; flex: none; }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 1px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 500;
+      border: 1px solid var(--line);
+      background: var(--chrome);
+      color: var(--ink);
+    }
+    .tag.ctrl {
+      color: var(--strong);
+      background: var(--hover);
+      border-color: var(--line);
+    }
+    .tag.ag {
+      color: #2563eb;
+      border-color: rgba(37, 99, 235, 0.28);
+      background: rgba(37, 99, 235, 0.09);
+    }
+    .tag.api {
+      color: #7c3aed;
+      border-color: rgba(124, 58, 237, 0.28);
+      background: rgba(124, 58, 237, 0.09);
+    }
+    .tag.claude {
+      color: #b45309;
+      border-color: rgba(180, 83, 9, 0.28);
+      background: rgba(180, 83, 9, 0.09);
+    }
+    .tag.codex {
+      color: #0f766e;
+      border-color: rgba(15, 118, 110, 0.28);
+      background: rgba(15, 118, 110, 0.09);
+    }
+    .tag.ok {
+      color: var(--success);
+      border-color: color-mix(in srgb, var(--success) 28%, transparent);
+      background: color-mix(in srgb, var(--success) 10%, transparent);
+    }
+    .tag.warn {
+      color: #d97706;
+      border-color: rgba(217, 119, 6, 0.28);
+      background: rgba(217, 119, 6, 0.1);
+    }
+    .tag.err {
+      color: var(--danger);
+      border-color: color-mix(in srgb, var(--danger) 28%, transparent);
+      background: color-mix(in srgb, var(--danger) 10%, transparent);
+    }
+
+    .footer-bar {
+      margin-top: 14px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .empty-state {
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      padding: 32px 16px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .empty-state p { margin: 0 0 12px; }
+
+    /* Modals */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.48);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 100;
+    }
+    .modal-backdrop.sub {
+      z-index: 200;
+      background: rgba(17, 24, 39, 0.55);
+    }
+    .modal {
+      width: 100%;
+      max-width: 520px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: 0 20px 44px rgba(0, 0, 0, 0.22);
+      display: flex;
+      flex-direction: column;
+      max-height: 88vh;
+      overflow: hidden;
+    }
+    .modal.sm-w { max-width: 460px; }
+    .modal.xl { max-width: 760px; }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      flex: none;
+    }
+    .modal-header h2 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 650;
+      color: var(--strong);
+    }
+    .modal-body {
+      padding: 14px 16px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 16px;
+      border-top: 1px solid var(--line);
+      background: var(--chrome);
+      flex: none;
+    }
+    .modal-footer.right { justify-content: flex-end; }
+
+    .step-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 650;
+      color: var(--strong);
+      margin-bottom: 5px;
+    }
+    .field { margin-bottom: 12px; }
+    .field:last-child { margin-bottom: 0; }
+    .field label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--strong);
+      margin-bottom: 4px;
+    }
+    .input-row { display: flex; gap: 6px; align-items: center; }
+    .input-row select, .input-row input { flex: 1; min-width: 0; }
+    input, select {
+      width: 100%;
+      padding: 7px 9px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--paper);
+      color: var(--ink);
+      font-size: 12px;
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .divider { border: none; border-top: 1px solid var(--line); margin: 12px 0; }
+
+    .agent-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin-bottom: 10px;
+    }
+    .agent-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 11px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--chrome);
+    }
+    .agent-item-main { min-width: 0; flex: 1; }
+    .agent-item-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--strong);
+    }
+    .agent-item-sub {
+      margin-top: 2px;
+      font-size: 11px;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .warn-box {
+      padding: 9px 11px;
+      border-radius: 8px;
+      border: 1px dashed rgba(217, 119, 6, 0.45);
+      background: rgba(217, 119, 6, 0.08);
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 1.5;
+      margin-top: 6px;
+    }
+    .hint-box {
+      padding: 8px 10px;
+      border-radius: 7px;
+      border: 1px dashed var(--line);
+      background: var(--chrome);
+      color: var(--muted);
+      font-size: 11.5px;
+      line-height: 1.5;
+      margin-top: 6px;
+    }
+
+    .segmented-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      padding: 3px;
+      border-radius: 8px;
+      background: var(--chrome);
+      border: 1px solid var(--line);
+      margin-bottom: 14px;
+    }
+    .seg-btn {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .seg-btn.active {
+      background: var(--paper);
+      color: var(--strong);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    }
+
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .filter-bar input[type="date"] { width: 145px; flex: none; }
+    .filter-bar select { width: 165px; flex: none; }
+    .filter-bar input[type="text"] { flex: 1; min-width: 140px; }
+
+    .session-list { display: flex; flex-direction: column; gap: 7px; }
+    .session-row {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 12px;
+      background: var(--paper);
+      cursor: pointer;
+    }
+    .session-row:hover { background: var(--chrome); }
+    .session-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .session-title { font-weight: 600; color: var(--strong); font-size: 13px; }
+    .session-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+    .session-snippet {
+      margin-top: 5px;
+      font-size: 12px;
+      color: var(--ink);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .turn-list { display: flex; flex-direction: column; gap: 10px; }
+    .turn-card {
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 10px 12px;
+      background: var(--paper);
+    }
+    .turn-card.user { background: var(--chrome); }
+    .turn-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11.5px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .turn-body {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: inherit;
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: var(--ink);
+    }
+    details.thinking-box {
+      margin-bottom: 8px;
+      border: 1px dashed var(--line);
+      border-radius: 6px;
+      padding: 6px 8px;
+      background: var(--chrome);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    details.thinking-box summary { cursor: pointer; font-weight: 600; }
+
+    .model-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .model-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--chrome);
+    }
+    .model-item-main { min-width: 0; flex: 1; }
+    .sub-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 12px;
+      font-weight: 650;
+      color: var(--strong);
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="title-group">
+      <h1>Agent Mesh</h1>
+      <span class="subtitle">多 AI 协作</span>
+      <span id="status-pill" class="status-pill"><i class="dot"></i><span id="status-text">检测中...</span></span>
+      <span id="codex-pill" class="tag codex hidden">Codex 就绪</span>
+      <span id="ag-pill" class="tag ag hidden">Antigravity 已连接</span>
+    </div>
+    <div class="actions">
+      <button id="open-models-btn">模型设置</button>
+      <button id="refresh-btn">刷新</button>
+      <button id="open-project-btn" class="primary">+ 创建项目</button>
+    </div>
+  </header>
+
+  <div class="section-meta">
+    <span id="summary-line">正在加载...</span>
+    <span id="active-dir-line"></span>
+  </div>
+
+  <div id="project-list" class="project-list"></div>
+
+  <div class="footer-bar">
+    <button id="open-all-sessions-btn" class="ghost sm">查看全部历史会话</button>
+  </div>
+
+  <!-- Modal 1: Create / Edit Collaboration Project -->
+  <div id="project-backdrop" class="modal-backdrop hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="project-modal-title">
+      <div class="modal-header">
+        <h2 id="project-modal-title">创建协作项目</h2>
+        <button id="close-project-btn" class="ghost">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label for="ctrl-select"><span>1. 选择主控 Claude Desktop</span></label>
+          <select id="ctrl-select"></select>
+          <div id="ctrl-nocode-warn" class="warn-box hidden">
+            该账号为 Free（无 Claude Code 权限），没有本地代码项目列表，仅支持作为纯对话协作者。建议选择 Pro/Max 账号作为主控。
+          </div>
+        </div>
+
+        <div id="ctrl-ws-field" class="field">
+          <label for="ws-select"><span>2. 选择主控内的项目</span></label>
+          <div class="input-row">
+            <select id="ws-select"></select>
+            <button id="copy-ws-btn" type="button">复制路径</button>
+          </div>
+          <div id="ws-custom-wrap" class="hidden" style="margin-top: 6px;">
+            <input id="proj-ws" placeholder="手动输入项目目录路径，例如 /path/to/your-project" />
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-bottom: 12px;">
+          <div class="field" style="margin-bottom: 0;">
+            <label for="proj-name"><span>项目名称</span></label>
+            <input id="proj-name" placeholder="例如 my-project" />
+          </div>
+          <div class="field" style="margin-bottom: 0;">
+            <label for="proj-key"><span>项目 Key</span></label>
+            <input id="proj-key" placeholder="例如 my-project" />
+          </div>
+        </div>
+
+        <hr class="divider" />
+
+        <div class="step-label">
+          <span>3. 已添加的协作 AI Agent（<span id="agent-count">0</span>）</span>
+        </div>
+
+        <div id="draft-agent-list" class="agent-list"></div>
+
+        <button id="open-add-agent-btn" type="button" class="dashed">+ 添加 AI Agent 协作</button>
+      </div>
+      <div class="modal-footer right">
+        <button id="cancel-project-btn" type="button">取消</button>
+        <button id="save-project-btn" type="button" class="primary">保存项目</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sub-Modal: Add One AI Agent Collaborator -->
+  <div id="add-agent-backdrop" class="modal-backdrop sub hidden">
+    <div class="modal sm-w" role="dialog" aria-modal="true" aria-labelledby="add-agent-title">
+      <div class="modal-header">
+        <h2 id="add-agent-title">添加 AI Agent 协作</h2>
+        <button id="close-add-agent-btn" class="ghost">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="segmented-4">
+          <button id="agent-tab-api" type="button" class="seg-btn active">API 模型</button>
+          <button id="agent-tab-codex" type="button" class="seg-btn">Codex</button>
+          <button id="agent-tab-claude" type="button" class="seg-btn">Claude 实例</button>
+          <button id="agent-tab-ag" type="button" class="seg-btn">Antigravity</button>
+        </div>
+
+        <!-- Option 1: API Model (Pick only from Model Settings) -->
+        <div id="sub-api-panel">
+          <div class="field">
+            <label for="sub-api-select"><span>选择已在「模型设置」中添加的模型</span></label>
+            <select id="sub-api-select"></select>
+            <div id="sub-api-empty-warn" class="warn-box hidden">
+              暂无可选模型。请先前往页面右上角「模型设置」中添加 API 模型后再来选择。
+            </div>
+            <div id="sub-api-summary" class="hint-box hidden"></div>
+          </div>
+        </div>
+
+        <!-- Option 2: Local Codex Desktop / CLI -->
+        <div id="sub-codex-panel" class="hidden">
+          <div id="sub-codex-offline-warn" class="warn-box hidden">
+            未检测到本机 Codex CLI / Codex Desktop。请先安装并登录 Codex 后点击「重新扫描」。
+          </div>
+
+          <div id="sub-codex-fields">
+            <div class="field">
+              <label for="sub-codex-proj">
+                <span>Codex 项目 / 工作目录</span>
+                <button id="sub-codex-rescan-btn" type="button" class="ghost sm">重新扫描</button>
+              </label>
+              <select id="sub-codex-proj"></select>
+            </div>
+
+            <div class="grid-2" style="margin-bottom: 10px;">
+              <div class="field" style="margin-bottom: 0;">
+                <label for="sub-codex-model"><span>Codex 模型</span></label>
+                <select id="sub-codex-model"></select>
+              </div>
+              <div class="field" style="margin-bottom: 0;">
+                <label for="sub-codex-thinking"><span>思考等级</span></label>
+                <select id="sub-codex-thinking">
+                  <option value="">跟随 Codex 默认</option>
+                  <option value="minimal">极低 (minimal)</option>
+                  <option value="low">低 (low)</option>
+                  <option value="medium">中 (medium)</option>
+                  <option value="high">高 (high)</option>
+                  <option value="xhigh">最高 (xhigh)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="sub-codex-sandbox"><span>工作目录权限</span></label>
+              <select id="sub-codex-sandbox">
+                <option value="workspace-write">读写项目目录（推荐，可直接协助改代码）</option>
+                <option value="read-only">仅只读审查（只分析代码与方案，不改文件）</option>
+              </select>
+            </div>
+            <div class="hint-box">
+              通过本机 Codex CLI 无鼠标后台执行，复用你已在 Codex Desktop 配置好的账号、模型与代理，会话会自动记录到 Codex 历史并支持多轮续聊。
+            </div>
+          </div>
+        </div>
+
+        <!-- Option 2: Secondary Claude Desktop Instance -->
+        <div id="sub-claude-panel" class="hidden">
+          <div class="field">
+            <label for="sub-claude-inst"><span>选择协作 Claude Desktop 实例</span></label>
+            <select id="sub-claude-inst"></select>
+            <div id="sub-claude-empty-warn" class="warn-box hidden">
+              当前仅检测到 1 个 Claude Desktop 实例。如需多实例协作，请在左侧「+ 新建 Desktop」添加其他账号实例。
+            </div>
+          </div>
+
+          <div id="sub-claude-fields">
+            <div id="sub-claude-proj-field" class="field">
+              <label for="sub-claude-proj"><span>对应项目列表</span></label>
+              <select id="sub-claude-proj"></select>
+            </div>
+
+            <div class="grid-2">
+              <div class="field" style="margin-bottom: 0;">
+                <label for="sub-claude-model"><span>Claude 模型</span></label>
+                <select id="sub-claude-model">
+                  <option value="">跟随默认</option>
+                  <option value="opus">Opus</option>
+                  <option value="sonnet">Sonnet</option>
+                  <option value="haiku">Haiku</option>
+                </select>
+              </div>
+              <div class="field" style="margin-bottom: 0;">
+                <label for="sub-claude-thinking"><span>思考等级</span></label>
+                <select id="sub-claude-thinking">
+                  <option value="">默认</option>
+                  <option value="low">低 (low)</option>
+                  <option value="medium">中 (medium)</option>
+                  <option value="high">高 (high)</option>
+                  <option value="max">最高 (max)</option>
+                </select>
+              </div>
+            </div>
+            <div id="sub-claude-mode-note" class="hint-box"></div>
+          </div>
+        </div>
+
+        <!-- Option 3: Antigravity (Optional Auto-Detected) -->
+        <div id="sub-ag-panel" class="hidden">
+          <div class="field">
+            <label for="sub-ag-select">
+              <span>Antigravity 项目列表</span>
+              <button id="sub-rescan-btn" type="button" class="ghost sm">重新扫描</button>
+            </label>
+            <select id="sub-ag-select"></select>
+            <div id="sub-ag-offline-warn" class="hint-box hidden">
+              未检测到本机 Antigravity 桥接服务（可选组件）。如果不需要联动 Antigravity，可直接切换到「API 模型」或「Claude 实例」使用；如需接入，请在 Antigravity Automations 中启用 Sidecar 后点「重新扫描」。
+            </div>
+            <div id="sub-ag-empty-warn" class="warn-box hidden">
+              已连接 Antigravity，但未扫描到可用项目。请先在 Antigravity 左侧 Projects 创建项目并发送一条消息初始化，再点「重新扫描」。
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="field" style="margin-bottom: 0;">
+              <label for="sub-ag-model"><span>Antigravity 模型</span></label>
+              <select id="sub-ag-model">
+                <option value="">跟随默认</option>
+                <option value="pro">Pro 档位 (pro)</option>
+                <option value="flash">Flash 档位 (flash)</option>
+                <option value="flash_lite">Flash Lite (flash_lite)</option>
+                <option value="gemini-4-neon-high">Gemini 4 Neon High</option>
+                <option value="gemini-4-neon">Gemini 4 Neon</option>
+                <option value="__custom__">自定义 Model ID...</option>
+              </select>
+            </div>
+            <div class="field" style="margin-bottom: 0;">
+              <label for="sub-ag-thinking"><span>思考等级</span></label>
+              <select id="sub-ag-thinking">
+                <option value="">默认</option>
+                <option value="minimal">极低 (minimal)</option>
+                <option value="low">低 (low)</option>
+                <option value="medium">中 (medium)</option>
+                <option value="high">高 (high)</option>
+                <option value="xhigh">最高 (xhigh)</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="sub-ag-custom-model-wrap" class="field hidden" style="margin-top: 10px;">
+            <label for="sub-ag-custom-model"><span>自定义 Model ID</span></label>
+            <input id="sub-ag-custom-model" placeholder="例如 gemini-4-neon-high" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer right">
+        <button id="cancel-add-agent-btn" type="button">取消</button>
+        <button id="confirm-add-agent-btn" type="button" class="primary">添加到项目</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Paginated & Date-Filterable Sessions Modal -->
+  <div id="sessions-backdrop" class="modal-backdrop hidden">
+    <div class="modal xl" role="dialog" aria-modal="true" aria-labelledby="sessions-modal-title">
+      <div class="modal-header">
+        <div class="title-group">
+          <button id="back-to-list-btn" type="button" class="ghost sm hidden">← 返回列表</button>
+          <h2 id="sessions-modal-title">项目会话记录</h2>
+        </div>
+        <button id="close-sessions-btn" class="ghost">×</button>
+      </div>
+
+      <div id="sessions-list-view" class="modal-body">
+        <div class="filter-bar">
+          <input id="filter-date" type="date" title="按日期筛选" />
+          <button id="clear-date-btn" type="button" class="sm">全部日期</button>
+          <select id="filter-collab"></select>
+          <input id="filter-q" type="text" placeholder="搜索标题或回复内容..." />
+          <button id="apply-filter-btn" type="button" class="primary sm">查询</button>
+        </div>
+        <div id="sessions-list-box" class="session-list"></div>
+      </div>
+
+      <div id="sessions-detail-view" class="modal-body hidden">
+        <div class="sub-heading">
+          <span id="detail-meta"></span>
+          <button id="copy-reply-btn" type="button" class="sm">复制最新回复</button>
+        </div>
+        <div id="detail-turns-box" class="turn-list"></div>
+      </div>
+
+      <div id="sessions-footer" class="modal-footer">
+        <span id="page-info" class="project-sub" style="margin: 0;">共 0 条 · 第 1 / 1 页</span>
+        <div class="actions">
+          <button id="prev-page-btn" type="button" class="sm">上一页</button>
+          <button id="next-page-btn" type="button" class="sm">下一页</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Standalone Model Settings (The ONLY place to add/edit API models) -->
+  <div id="models-backdrop" class="modal-backdrop hidden">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="models-modal-title">
+      <div class="modal-header">
+        <h2 id="models-modal-title">模型设置</h2>
+        <button id="close-models-btn" class="ghost">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="sub-heading">
+          <span>已添加的模型</span>
+          <button id="new-model-btn" type="button" class="ghost sm">+ 清空表单新增</button>
+        </div>
+        <div id="saved-models-list" class="model-list"></div>
+
+        <hr class="divider" />
+
+        <div class="sub-heading">
+          <span id="model-form-title">添加新模型</span>
+        </div>
+
+        <input id="m-key" type="hidden" />
+
+        <div class="grid-2" style="margin-bottom: 10px;">
+          <div class="field" style="margin-bottom: 0;">
+            <label for="m-name"><span>模型名称（备注）</span></label>
+            <input id="m-name" placeholder="例如 DeepSeek 推理" />
+          </div>
+          <div class="field" style="margin-bottom: 0;">
+            <label for="m-id"><span>模型 ID</span></label>
+            <input id="m-id" placeholder="例如 deepseek-reasoner" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="m-base"><span>API Base URL</span></label>
+          <input id="m-base" placeholder="例如 https://api.deepseek.com" />
+        </div>
+
+        <div class="grid-2" style="margin-bottom: 10px;">
+          <div class="field" style="margin-bottom: 0;">
+            <label for="m-thinking"><span>思考等级</span></label>
+            <select id="m-thinking">
+              <option value="">默认 / 关闭</option>
+              <option value="minimal">极低 (minimal)</option>
+              <option value="low">低 (low)</option>
+              <option value="medium">中 (medium)</option>
+              <option value="high">高 (high)</option>
+              <option value="xhigh">最高 (xhigh)</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom: 0;">
+            <label for="m-apikey"><span>API Key</span></label>
+            <input id="m-apikey" type="password" placeholder="sk-...（仅存本机）" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="m-system"><span>默认角色设定 / System Prompt（可选）</span></label>
+          <input id="m-system" placeholder="例如：你是资深代码评审专家，请直接指出隐患与改进方案" />
+        </div>
+      </div>
+      <div class="modal-footer right">
+        <button id="cancel-models-btn" type="button">关闭</button>
+        <button id="save-model-btn" type="button" class="primary">保存模型</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

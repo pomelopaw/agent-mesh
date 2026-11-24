@@ -1,0 +1,10 @@
+{
+  "zh-CN": {
+    "displayName": "Agent Mesh",
+    "description": "多 AI 后台协作中心。支持按项目编组自定义推理 API 模型、本机 Codex、多账号桌面实例与可选的 Antigravity 项目，全程无鼠标干扰后台并行派单，并支持按日期分页回溯历史会话。"
+  },
+  "zh-TW": {
+    "displayName": "Agent Mesh",
+    "description": "多 AI 背景協作中心。支援依專案編組自訂推理 API 模型、本機 Codex、多帳號桌面實例與可選的 Antigravity 專案，全程無滑鼠干擾背景平行派單，並支援依日期分頁回溯歷史會話。"
+  }
+}

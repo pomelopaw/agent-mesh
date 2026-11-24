@@ -1,0 +1,11 @@
+{
+  "name": "Agent Mesh Antigravity Bridge",
+  "description": "Optional localhost Antigravity bridge for Agent Mesh (exposes Antigravity project discovery and agentapi dispatch on 127.0.0.1:18765).",
+  "command": "python3",
+  "args": [
+    "-X",
+    "utf8",
+    "/ABSOLUTE/PATH/TO/agent-mesh/sidecar/bridge_sidecar.py"
+  ],
+  "restartPolicy": "on-failure"
+}

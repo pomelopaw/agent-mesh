@@ -1,0 +1,74 @@
+{
+  "name": "agent-mesh",
+  "displayName": "Agent Mesh",
+  "version": "1.0.0",
+  "description": "Background multi-AI orchestration hub. Bind custom reasoning APIs, local Codex projects, multi-instance desktop assistants, and optional Antigravity projects per workspace for parallel collaboration with paginated history.",
+  "icon": "icon.svg",
+  "engines": {
+    "cage": ">=0.2.0"
+  },
+  "kind": "host",
+  "platforms": [
+    "windows",
+    "darwin",
+    "linux"
+  ],
+  "permissions": [
+    "files",
+    "network"
+  ],
+  "categories": [
+    "developer",
+    "productivity"
+  ],
+  "contributes": {
+    "mcpServers": [
+      {
+        "id": "mesh",
+        "command": [
+          "python3",
+          "-X",
+          "utf8",
+          "server.py",
+          "--project-dir",
+          "${PROJECT_DIR}"
+        ]
+      }
+    ],
+    "views": [
+      {
+        "id": "panel",
+        "title": "Agent Mesh",
+        "icon": "icon.svg",
+        "entry": "view/index.html",
+        "server": "mesh"
+      }
+    ],
+    "settings": [
+      {
+        "id": "state-dir",
+        "title": "State Directory",
+        "description": "Optional custom directory for storing projects, models, secrets, and session history (defaults to ~/.agent-mesh).",
+        "type": "string",
+        "env": "AGENT_MESH_STATE_DIR",
+        "default": ""
+      },
+      {
+        "id": "ag-bridge-url",
+        "title": "Antigravity Bridge URL (Optional)",
+        "description": "Localhost HTTP endpoint of the optional Antigravity Sidecar bridge.",
+        "type": "string",
+        "env": "AGENT_MESH_AG_BRIDGE_URL",
+        "default": "http://127.0.0.1:18765"
+      },
+      {
+        "id": "ag-token-file",
+        "title": "Antigravity Token File (Optional)",
+        "description": "Optional custom path to the shared bearer token file (defaults to ~/.agent-mesh/bridge.token).",
+        "type": "string",
+        "env": "AGENT_MESH_AG_TOKEN_FILE",
+        "default": ""
+      }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.tmp
+.DS_Store
+Thumbs.db
+state/
+secrets.json
+bridge.token
+*.log
+dist/*.zip
+dist/*.sha256
