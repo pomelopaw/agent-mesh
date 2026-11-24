@@ -16,7 +16,7 @@ from typing import Any, Callable
 
 from .security import assert_within_dir, validate_conversation_id
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 TURN_EVENT = threading.Condition()
 _LOCAL_LOCK = threading.RLock()

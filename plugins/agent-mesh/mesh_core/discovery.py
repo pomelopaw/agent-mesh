@@ -229,21 +229,28 @@ def list_local_desktop_instances() -> list[dict[str, Any]]:
         desktop_status = str(acc.get("desktop_status") or "unknown")
         code_unlinked = bool(acc.get("code_unlinked", False))
         raw_plan = str(acc.get("plan") or "").strip()
-        has_code_access = (
+        is_free = raw_plan.lower() == "free"
+        desktop_ready = desktop_status == "ready"
+        code_cli_ready = (
             cli_status == "ready"
             and (not code_unlinked)
-            and raw_plan.lower() != "free"
+            and (not is_free)
         )
-        plan_label = raw_plan.capitalize() if raw_plan else ("Free" if not has_code_access else "Pro")
+        # Never fabricate "Free" when only Desktop is signed in and plan is unknown.
+        has_code_access = not is_free
+        plan_label = raw_plan.capitalize() if raw_plan else ""
         out.append(
             {
                 "id": acc_id,
                 "number": num,
                 "email": email,
                 "desktop_status": desktop_status,
+                "desktop_ready": desktop_ready,
                 "cli_status": cli_status,
-                "cli_ready": bool(has_code_access and direct_cli),
+                "code_cli_ready": code_cli_ready,
+                "cli_ready": bool(code_cli_ready and direct_cli),
                 "has_code_access": has_code_access,
+                "is_free": is_free,
                 "plan": raw_plan,
                 "plan_label": plan_label,
             }

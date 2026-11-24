@@ -108,11 +108,22 @@ export function renderDraftAgents() {
 }
 
 function formatInstanceLabel(inst) {
-  const plan = inst.plan_label || (inst.has_code_access ? "Pro" : "Free");
   const isZh = getLang() === "zh";
-  const cap = inst.has_code_access
-    ? plan + (isZh ? " · 支持 Code 项目" : " · Code Ready")
-    : plan + (isZh ? " · 无 Code 权限（仅对话）" : " · Relay Only");
+  const plan = inst.plan_label || "";
+  let cap = "";
+  if (inst.is_free) {
+    cap = "Free · " + (isZh ? "仅对话 / 协作信箱" : "Dialogue / Relay");
+  } else if (plan && inst.code_cli_ready) {
+    cap = plan + " · " + (isZh ? "桌面端 + Code 就绪" : "Desktop + Code Ready");
+  } else if (plan) {
+    cap = plan + " · " + (isZh ? "桌面端已就绪" : "Desktop Ready");
+  } else if (inst.desktop_ready || inst.desktop_status === "ready") {
+    cap = isZh ? "桌面端已就绪" : "Desktop Ready";
+  } else if (inst.code_cli_ready) {
+    cap = isZh ? "Code 已就绪" : "Code Ready";
+  } else {
+    cap = isZh ? "未登录" : "Signed Out";
+  }
   return "#" + inst.number + "  " + inst.email + " (" + cap + ")";
 }
 
@@ -124,9 +135,10 @@ export function syncWsCustomVisibility() {
 export function syncControllerState() {
   const ctrlId = document.getElementById("ctrl-select").value;
   const inst = state.discoveredInstances.find((x) => x.id === ctrlId);
-  const hasCode = !inst || inst.has_code_access !== false;
-  document.getElementById("ctrl-nocode-warn").classList.toggle("hidden", hasCode);
-  document.getElementById("ctrl-ws-field").classList.toggle("hidden", !hasCode);
+  const isFree = !!(inst && inst.is_free === true);
+  document.getElementById("ctrl-nocode-warn").classList.toggle("hidden", !isFree);
+  // Always keep workspace selection available regardless of CLI link state or plan tier
+  document.getElementById("ctrl-ws-field").classList.remove("hidden");
 }
 
 export function currentPrimaryWorkspace() {
@@ -187,8 +199,10 @@ function populateProjectModal(editingItem) {
   } else {
     state.editingProjectTitle = t("create_project_title");
     document.getElementById("proj-ws").value = "";
-    const firstCodeInst = state.discoveredInstances.find((x) => x.has_code_access);
-    if (firstCodeInst) ctrlSel.value = firstCodeInst.id;
+    const firstReadyInst =
+      state.discoveredInstances.find((x) => x.code_cli_ready) ||
+      state.discoveredInstances.find((x) => x.desktop_ready || !x.is_free);
+    if (firstReadyInst) ctrlSel.value = firstReadyInst.id;
     const boundWs = new Set(Object.values(state.savedProjects).map((p) => normPath(p.workspace_path)));
     const firstUnbound = wsItems.find((w) => !boundWs.has(normPath(w.path)));
     if (firstUnbound) wsSel.value = firstUnbound.path;
@@ -226,10 +240,8 @@ export async function saveProject(btn) {
       : null;
 
     const wsSel = document.getElementById("ws-select");
-    const ctrlHasCode = !ctrlInst || ctrlInst.has_code_access !== false;
-    const workspace_path = !ctrlHasCode
-      ? ""
-      : wsSel.value === "__manual__"
+    const workspace_path =
+      wsSel.value === "__manual__"
         ? document.getElementById("proj-ws").value.trim()
         : wsSel.value;
     const display_name = document.getElementById("proj-name").value.trim();
@@ -296,8 +308,8 @@ export function updateClaudeInstanceModeNote() {
     projField.classList.add("hidden");
     return;
   }
-  const hasCode = inst.has_code_access !== false;
-  projField.classList.toggle("hidden", !hasCode);
+  const isFree = inst.is_free === true;
+  projField.classList.toggle("hidden", isFree);
   const isZh = getLang() === "zh";
   note.textContent = inst.cli_ready
     ? (isZh ? "已检测到本地 CLI 与配置根目录，将直接后台执行。" : "Local CLI and config root detected; runs directly in background.")

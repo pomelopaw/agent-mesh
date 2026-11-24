@@ -1,7 +1,7 @@
 {
   "name": "agent-mesh",
   "displayName": "Agent Mesh",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Background multi-AI orchestration hub. Bind custom reasoning APIs, local Codex projects, multi-instance desktop assistants, and optional Antigravity projects per workspace for parallel collaboration with paginated history.",
   "icon": "icon.svg",
   "engines": {
